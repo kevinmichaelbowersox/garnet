@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
@@ -470,7 +469,7 @@ namespace Garnet.server.ACL
                 for (int i = 0; i < parts.Count; i++)
                 {
                     string withoutRule = $"user test on >xxx {string.Join(" ", parts.Take(i).Skip(1))}";
-                    CommandPermissionSet withoutPerms = ACLParser.ParseACLRule(withoutRule).CopyCommandPermissionSet();
+                    CommandPermissionSet withoutPerms = ACLParser.ParseACLRule(withoutRule, acl: null).CopyCommandPermissionSet();
                     if (withoutPerms.IsEquivalentTo(set))
                     {
                         parts.RemoveAt(i);

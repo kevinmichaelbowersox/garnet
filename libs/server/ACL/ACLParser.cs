@@ -88,7 +88,20 @@ namespace Garnet.server.ACL
             string username = tokens[1];
 
             // Create the user to add or update in the access control list.
-            User user = new User(username);
+            User user;
+            if (acl != null)
+            {
+                user = acl.GetUser(username);
+
+                if (user == null)
+                {
+                    user = new User(username);
+                }
+            }
+            else
+            {
+                user = new User(username);
+            }
 
             // Parse remaining tokens as ACL operations
             for (int i = 2; i < tokens.Length; i++)

@@ -286,23 +286,23 @@ namespace Garnet.server.ACL
         }
 
         /// <summary>
-        /// Registers a subscriber to receive notifications when modifications are performed to user ACLs.
+        /// Registers a subscriber to receive notifications when modifications are performed to the <see cref="AccessControlList"/>.
         /// </summary>
         /// <param name="subscriber">The <see cref="IAccessControlListSubscriber"/> to register.</param>
         internal void Subscribe(IAccessControlListSubscriber subscriber)
         {
-            _subscribers[subscriber.SubscriberKey] = subscriber;
+            _subscribers[subscriber.AclSubscriberKey] = subscriber;
         }
 
         /// <summary>
-        /// Notify the registered subscribers when modifications to user ACLs are performed.
+        /// Notify the registered subscribers when modifications are performed to the <see cref="AccessControlList"/>.
         /// </summary>
         /// <param name="user">The created or updated <see cref="User"/> that triggered the notification.</param>
         private void NotifySubscribers(User user)
         {
             foreach (IAccessControlListSubscriber subscriber in _subscribers.Values)
             {
-                subscriber.Notify(user);
+                subscriber.NotifyAclChange(user);
             }
         }
     }

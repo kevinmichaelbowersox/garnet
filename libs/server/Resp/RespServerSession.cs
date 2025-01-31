@@ -190,6 +190,11 @@ namespace Garnet.server
         /// </summary>
         public long CreationTicks { get; }
 
+        /// <summary>
+        /// Subscriber key for receiving <see cref="AccessControlList"/> notifications.
+        /// </summary>
+        public string AclSubscriberKey => $"{this.Id}";
+
         public RespServerSession(
             long id,
             INetworkSender networkSender,
@@ -281,8 +286,6 @@ namespace Garnet.server
 
         public int StoreSessionID => storageSession.SessionID;
         public int ObjectStoreSessionID => storageSession.ObjectStoreSessionID;
-
-        public string SubscriberKey => $"{this.Id}";
 
         /// <summary>
         /// Tries to authenticate the given username/password and updates the user associated with this server session.
@@ -1242,7 +1245,7 @@ namespace Garnet.server
         }
 
         /// <inheritdoc/>
-        public void Notify(User user)
+        public void NotifyAclChange(User user)
         {
             if (!_isAclStale && _user.Name == user.Name)
             {
