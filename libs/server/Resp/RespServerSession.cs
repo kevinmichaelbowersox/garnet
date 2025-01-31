@@ -33,7 +33,7 @@ namespace Garnet.server
     /// <summary>
     /// RESP server session
     /// </summary>
-    internal sealed unsafe partial class RespServerSession : ServerSessionBase
+    internal sealed unsafe partial class RespServerSession : ServerSessionBase, IAccessControlListSubscriber
     {
         readonly GarnetSessionMetrics sessionMetrics;
         readonly GarnetLatencyMetricsSession LatencyMetrics;
@@ -76,7 +76,7 @@ namespace Garnet.server
         byte* recvBufferPtr;
 
         /// <summary>
-        /// Current readHead. On successful parsing, this is left at the start of 
+        /// Current readHead. On successful parsing, this is left at the start of
         /// the command payload for use by legacy operators.
         /// </summary>
         int readHead;
@@ -101,6 +101,11 @@ namespace Garnet.server
         /// </summary>
         User _user = null;
 
+        /// <summary>
+        /// Indicator of stale ACL.
+        /// </summary>
+        bool _isAclStale = true;
+
         readonly ILogger logger = null;
 
         /// <summary>
@@ -110,7 +115,7 @@ namespace Garnet.server
 
         /// <summary>
         /// If set, commands can use this to enumerate details about the server or other sessions.
-        /// 
+        ///
         /// It is not guaranteed to be set.
         /// </summary>
         public IGarnetServer Server { get; set; }
@@ -215,6 +220,8 @@ namespace Garnet.server
 
             this.storeWrapper = storeWrapper;
             this.subscribeBroker = subscribeBroker;
+
+            this.storeWrapper.accessControlList.Subscribe(this);
             this._authenticator = authenticator ?? storeWrapper.serverOptions.AuthSettings?.CreateAuthenticator(this.storeWrapper) ?? new GarnetNoAuthAuthenticator();
 
             if (storeWrapper.serverOptions.EnableLua && enableScripts)
@@ -275,6 +282,8 @@ namespace Garnet.server
         public int StoreSessionID => storageSession.SessionID;
         public int ObjectStoreSessionID => storageSession.ObjectStoreSessionID;
 
+        public string SubscriberKey => $"{this.Id}";
+
         /// <summary>
         /// Tries to authenticate the given username/password and updates the user associated with this server session.
         /// </summary>
@@ -288,23 +297,34 @@ namespace Garnet.server
 
             if (success)
             {
-                // Set authenticated user or fall back to default user, if separate users are not supported
-                // NOTE: Currently only GarnetACLAuthenticator supports multiple users
-                if (_authenticator is GarnetACLAuthenticator aclAuthenticator)
-                {
-                    this._user = aclAuthenticator.GetUser();
-                }
-                else
-                {
-                    this._user = this.storeWrapper.accessControlList.GetDefaultUser();
-                }
-
-                // Propagate authentication to cluster session
-                clusterSession?.SetUser(this._user);
-                sessionScriptCache?.SetUser(this._user);
+                RefreshUser();
+                _isAclStale = false;
             }
 
             return _authenticator.CanAuthenticate ? success : false;
+        }
+
+        private void RefreshUser()
+        {
+            if (!_isAclStale)
+            {
+                return;
+            }
+
+            // Set authenticated user or fall back to default user, if separate users are not supported
+            // NOTE: Currently only GarnetACLAuthenticator supports multiple users
+            if (_authenticator is GarnetACLAuthenticator aclAuthenticator)
+            {
+                this._user = aclAuthenticator.GetUser();
+            }
+            else
+            {
+                this._user = this.storeWrapper.accessControlList.GetDefaultUser();
+            }
+
+            // Propagate authentication to cluster session
+            clusterSession?.SetUser(this._user);
+            sessionScriptCache?.SetUser(this._user);
         }
 
         public override int TryConsumeMessages(byte* reqBuffer, int bytesReceived)
@@ -987,9 +1007,9 @@ namespace Garnet.server
 
         /// <summary>
         /// Attempt to kill this session.
-        /// 
+        ///
         /// Returns true if this call actually kills the underlying network connection.
-        /// 
+        ///
         /// Subsequent calls will return false.
         /// </summary>
         public bool TryKill()
@@ -1107,7 +1127,7 @@ namespace Garnet.server
                 // Compute space left on output buffer
                 int destSpace = (int)(dend - dcurr);
 
-                // Fast path if there is enough space 
+                // Fast path if there is enough space
                 if (src.Length <= destSpace)
                 {
                     src.CopyTo(new Span<byte>(dcurr, src.Length));
@@ -1214,6 +1234,15 @@ namespace Garnet.server
             }
 
             return header;
+        }
+
+        /// <inheritdoc/>
+        public void Notify(User user)
+        {
+            if (!_isAclStale && _user.Name == user.Name)
+            {
+                _isAclStale = true;
+            }
         }
     }
 }
