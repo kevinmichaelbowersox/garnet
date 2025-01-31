@@ -137,9 +137,9 @@ namespace Garnet.test.Resp.ACL
         }
 
         /// <summary>
-        /// Tests that ACL SETUSER works in parallel without encountering deadlocks.
+        /// Tests that ACL SETUSER works in parallel without encountering deadlocks. Test timesout after 5 minutes.
         /// </summary>
-        [TestCase(128, 2048)]
+        [TestCase(128, 2048), CancelAfter(300000)]
         public async Task ParallelAclSetUserAvoidsDeadlockTest(int degreeOfParallelism, int iterationsPerSession)
         {
             string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} +@dangerous -@admin -get +set -setex +decr -decrby +incr -incrby +del -unlink +flushdb -latency";
