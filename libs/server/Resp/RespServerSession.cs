@@ -458,6 +458,11 @@ namespace Garnet.server
                 // Check ACL permissions for the command
                 if (cmd != RespCommand.INVALID)
                 {
+                    if (_isAclStale)
+                    {
+                        this.RefreshUser();
+                    }
+
                     var noScriptPassed = true;
 
                     if (CheckACLPermissions(cmd) && (noScriptPassed = CheckScriptPermissions(cmd)))
