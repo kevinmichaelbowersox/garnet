@@ -298,7 +298,6 @@ namespace Garnet.server
             if (success)
             {
                 RefreshUser();
-                _isAclStale = false;
             }
 
             return _authenticator.CanAuthenticate ? success : false;
@@ -325,6 +324,7 @@ namespace Garnet.server
             // Propagate authentication to cluster session
             clusterSession?.SetUser(this._user);
             sessionScriptCache?.SetUser(this._user);
+            _isAclStale = false;
         }
 
         public override int TryConsumeMessages(byte* reqBuffer, int bytesReceived)
@@ -458,7 +458,7 @@ namespace Garnet.server
                 // Check ACL permissions for the command
                 if (cmd != RespCommand.INVALID)
                 {
-                    if (_isAclStale)
+                    if (_isAclStale && cmd != RespCommand.AUTH)
                     {
                         this.RefreshUser();
                     }

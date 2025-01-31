@@ -44,6 +44,15 @@ namespace Garnet.server.ACL
             _enabledCommands = CommandPermissionSet.None;
         }
 
+        public User(User user)
+        {
+            Name = user.Name;
+            IsEnabled = user.IsEnabled;
+            IsPasswordless = user.IsPasswordless;
+            _enabledCommands = user._enabledCommands.Copy();
+            _passwordHashes = new HashSet<ACLPassword>(user._passwordHashes);
+        }
+
         /// <summary>
         /// Checks whether the user can access the given command.
         /// </summary>
@@ -124,7 +133,7 @@ namespace Garnet.server.ACL
 
         /// <summary>
         /// Adds the given command to the user.
-        /// 
+        ///
         /// If the command has subcommands, and no specific subcommand is indicated, adds all subcommands too.
         /// </summary>
         /// <param name="command">Command to add.</param>
@@ -246,7 +255,7 @@ namespace Garnet.server.ACL
 
         /// <summary>
         /// Removes the given command from the user.
-        /// 
+        ///
         /// If the command has subcommands, and no specific subcommand is indicated, removes all subcommands too.
         /// </summary>
         /// <param name="command">Command to remove.</param>
@@ -448,7 +457,7 @@ namespace Garnet.server.ACL
 
         /// <summary>
         /// Check to see if any tokens from a description can be removed without modifying the effective permissions.
-        /// 
+        ///
         /// This is an expensive method, but ACL modifications are rare enough it's hopefully not a problem.
         /// </summary>
         private static string RationalizeACLDescription(CommandPermissionSet set, string description)
@@ -492,7 +501,7 @@ namespace Garnet.server.ACL
 
         /// <summary>
         /// A set of all allowed _passwordHashes for the user.
-        /// 
+        ///
         /// NOTE: HashSet is not thread-safe, so accesses need to be synchronized
         /// </summary>
         readonly HashSet<ACLPassword> _passwordHashes = [];

@@ -14,7 +14,7 @@ namespace Garnet.server.ACL
         public string SubscriberKey { get; }
 
         /// <summary>
-        /// Notify subscriber of <see cref="AccessControlList"/> changes.
+        /// Handle notification received when changes to the <see cref="AccessControlList"/> changes.
         /// </summary>
         /// <param name="user">The modified <see cref="User"/>.</param>
         public void Notify(User user);

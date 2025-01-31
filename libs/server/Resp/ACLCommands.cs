@@ -163,11 +163,20 @@ namespace Garnet.server
                 // REQUIRED: username
                 var username = parseState.GetString(0);
 
-                // Create new user with the given username
-                var user = new User(username);
+                // Modify or create the user with the given username
+                var user = aclAuthenticator.GetAccessControlList().GetUser(username);
 
                 try
                 {
+                    if (user == null)
+                    {
+                        user = new User(username);
+                    }
+                    else
+                    {
+                        user = new User(user);
+                    }
+
                     // Remaining parameters are ACL operations
                     for (var i = 1; i < parseState.Count; i++)
                     {
