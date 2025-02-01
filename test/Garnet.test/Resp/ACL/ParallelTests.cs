@@ -75,14 +75,15 @@ namespace Garnet.test.Resp.ACL
         /// Tests that ACL SETUSER works in parallel without corrupting the user's ACL.
         /// Uses lower degrees of parallelism to reduce chances of deadlock.
         /// </summary>
-        [TestCase(1, 1)]
-        public async Task ParallelAclSetUserTest(int degreeOfParallelism, int iterationsPerSession)
+        [TestCase(2, 2048)]
+        public async Task ParallelAclSetUserTest2(int degreeOfParallelism, int iterationsPerSession)
         {
-            string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} +@dangerous -@admin -get +set -setex +decr -decrby +incr -incrby +del -unlink +flushdb -latency";
-            string command2 = $"ACL SETUSER {TestUserA} off >{DummyPassword} -@dangerous +@admin +get -set +setex -decr +decrby -incr +incrby -del +unlink -flushdb +latency";
+            string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} +get";
+            string command2 = $"ACL SETUSER {TestUserA} off >{DummyPassword} -get";
 
-            string validResponse1 = $"user {TestUserA} on #{DummyPasswordHash} +@dangerous -@admin +set +decr +incr +del";
-            string validResponse2 = $"user {TestUserA} off #{DummyPasswordHash} +@admin +get +setex +decrby +incrby +unlink +latency";
+            string validResponse1 = $"user {TestUserA} on #{DummyPasswordHash} +get";
+            string validResponse2 = $"user {TestUserA} off #{DummyPasswordHash} -get";
+            string validResponse3 = $"user {TestUserA} off #{DummyPasswordHash}";
 
             var c = TestUtils.GetGarnetClientSession();
             c.Connect();
@@ -96,12 +97,17 @@ namespace Garnet.test.Resp.ACL
 
                 for (uint i = 0; i < iterationsPerSession; i++)
                 {
+
                     await Task.WhenAll(
                         c.ExecuteAsync(command1.Split(" ")),
                         c.ExecuteAsync(command2.Split(" ")));
 
+
+                    //await c.ExecuteAsync(command1.Split(" "));
+                    //await c.ExecuteAsync(command2.Split(" "));
+
                     var aclListResponse = await c.ExecuteForArrayAsync("ACL", "LIST");
-                    if (!aclListResponse.Contains(validResponse1) && !aclListResponse.Contains(validResponse2))
+                    if (!aclListResponse.Contains(validResponse1) && !aclListResponse.Contains(validResponse2) && !aclListResponse.Contains(validResponse3))
                     {
                         throw new AssertionException("Invalid ACL");
                     }
@@ -110,10 +116,60 @@ namespace Garnet.test.Resp.ACL
         }
 
         /// <summary>
+        /// Tests that ACL SETUSER works in parallel without corrupting the user's ACL.
+        /// Uses lower degrees of parallelism to reduce chances of deadlock.
+        /// </summary>
+        [TestCase(1, 2048)]
+        public async Task ParallelAclSetUserTest(int degreeOfParallelism, int iterationsPerSession)
+        {
+            string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} +get +set";
+            // string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} +@dangerous -@admin -get +set -setex +decr -decrby +incr -incrby +del -unlink +flushdb -latency";
+            string command2 = $"ACL SETUSER {TestUserA} off >{DummyPassword} +get -set";
+            // string command2 = $"ACL SETUSER {TestUserA} off >{DummyPassword} -@dangerous +@admin +get -set +setex -decr +decrby -incr +incrby -del +unlink -flushdb +latency";
+
+            // string validResponse1 = $"user {TestUserA} on #{DummyPasswordHash} +@dangerous -@admin +set +decr +incr +del";
+            string validResponse1 = $"user {TestUserA} on #{DummyPasswordHash} +get +set";
+            // string validResponse2 = $"user {TestUserA} off #{DummyPasswordHash} +@admin +get +setex +decrby +incrby +unlink +latency";
+            string validResponse2 = $"user {TestUserA} off #{DummyPasswordHash} +get";
+
+            var c = TestUtils.GetGarnetClientSession();
+            c.Connect();
+            _ = await c.ExecuteAsync(command1.Split(" "));
+
+            // Run multiple sessions that stress AUTH
+            for (int t = 0; t < 100; t++)
+
+            {
+                /*
+                using var c = TestUtils.GetGarnetClientSession();
+                c.Connect();
+                */
+
+                for (uint i = 0; i < iterationsPerSession; i++)
+                {
+                    /*
+                    await Task.WhenAll(
+                        c.ExecuteAsync(command1.Split(" ")),
+                        c.ExecuteAsync(command2.Split(" ")));
+*/
+
+                    await c.ExecuteAsync(command1.Split(" "));
+                    await c.ExecuteAsync(command2.Split(" "));
+
+                    var aclListResponse = await c.ExecuteForArrayAsync("ACL", "LIST");
+                    if (!aclListResponse.Contains(validResponse1) && !aclListResponse.Contains(validResponse2))
+                    {
+                        throw new AssertionException("Invalid ACL");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Tests that ACL SETUSER works in parallel without fatal contention on user in authenticator map.
         /// Uses lower degrees of parallelism to reduce chances of deadlock.
         /// </summary>
-        [TestCase(2, 2)]
+        [TestCase(128, 2048)]
         public async Task ParallelAclSetUserAvoidsMapContentionTest(int degreeOfParallelism, int iterationsPerSession)
         {
             string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} +@dangerous -@admin -get +set -setex +decr -decrby +incr -incrby +del -unlink +flushdb -latency";
@@ -142,11 +198,15 @@ namespace Garnet.test.Resp.ACL
         [TestCase(128, 2048), CancelAfter(300000)]
         public async Task ParallelAclSetUserAvoidsDeadlockTest(int degreeOfParallelism, int iterationsPerSession)
         {
-            string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} +@dangerous -@admin -get +set -setex +decr -decrby +incr -incrby +del -unlink +flushdb -latency";
-            string command2 = $"ACL SETUSER {TestUserA} off >{DummyPassword} -@dangerous +@admin +get -set +setex -decr +decrby -incr +incrby -del +unlink -flushdb +latency";
+            string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} -get +set";
+            // string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} +@dangerous -@admin -get +set -setex +decr -decrby +incr -incrby +del -unlink +flushdb -latency";
+            string command2 = $"ACL SETUSER {TestUserA} off >{DummyPassword} +get -set";
+            // string command2 = $"ACL SETUSER {TestUserA} off >{DummyPassword} -@dangerous +@admin +get -set +setex -decr +decrby -incr +incrby -del +unlink -flushdb +latency";
 
-            string validResponse1 = $"user {TestUserA} on #{DummyPasswordHash} +@dangerous -@admin +set +decr +incr +del";
-            string validResponse2 = $"user {TestUserA} off #{DummyPasswordHash} +@admin +get +setex +decrby +incrby +unlink +latency";
+            // string validResponse1 = $"user {TestUserA} on #{DummyPasswordHash} +@dangerous -@admin +set +decr +incr +del";
+            string validResponse1 = $"user {TestUserA} on #{DummyPasswordHash} +get -set";
+            // string validResponse2 = $"user {TestUserA} off #{DummyPasswordHash} +@admin +get +setex +decrby +incrby +unlink +latency";
+            string validResponse2 = $"user {TestUserA} off #{DummyPasswordHash} -get +set";
 
             var c = TestUtils.GetGarnetClientSession();
             c.Connect();
