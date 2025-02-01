@@ -43,16 +43,16 @@ namespace Garnet.server.ACL
 
         /// <summary>
         /// Parses a single-line ACL rule and returns a new user according to that rule.
-        /// 
+        ///
         /// ACL rules follow a subset of the Redis ACL rule syntax, with each rule
         /// being formatted as follows:
-        /// 
+        ///
         ///     ACL_RULE := user &lt;username> (&lt;ACL_OPERATION>)+
         ///     ACL_OPERATION := on | off | +@&lt;category> | -@&lt;category>
-        /// 
+        ///
         /// To manage user account:
         ///     on/off: enable/disable the user account
-        /// 
+        ///
         /// To configure user passwords:
         ///     &gt;&lt;password>: Add the password to the list of valid passwords for the user
         ///     &lt;&lt;password>: Remove the password from the list of valid password for the user
@@ -69,7 +69,7 @@ namespace Garnet.server.ACL
         /// <exception cref="ACLUnknownOperationException">Thrown if the given operation does not exist.</exception>
         public static User ParseACLRule(string input, AccessControlList acl = null)
         {
-            // Tokenize input string 
+            // Tokenize input string
             string[] tokens = input.Trim().Split(WhitespaceChars, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             // Sanity check for correctness
@@ -87,7 +87,7 @@ namespace Garnet.server.ACL
             // Expect username
             string username = tokens[1];
 
-            // Retrieve/add the user with the username to the access control list, if provided
+            // Create the user to add or update in the access control list.
             User user;
             if (acl != null)
             {
@@ -96,7 +96,6 @@ namespace Garnet.server.ACL
                 if (user == null)
                 {
                     user = new User(username);
-                    acl.AddUser(user);
                 }
             }
             else
@@ -108,6 +107,11 @@ namespace Garnet.server.ACL
             for (int i = 2; i < tokens.Length; i++)
             {
                 ApplyACLOpToUser(ref user, tokens[i]);
+            }
+
+            if (acl != null)
+            {
+                acl.AddOrUpdateUser(user);
             }
 
             return user;
