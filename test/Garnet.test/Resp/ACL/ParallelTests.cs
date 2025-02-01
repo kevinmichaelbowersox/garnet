@@ -75,7 +75,7 @@ namespace Garnet.test.Resp.ACL
         /// Tests that ACL SETUSER works in parallel without corrupting the user's ACL.
         /// Uses lower degrees of parallelism to reduce chances of deadlock.
         /// </summary>
-        [TestCase(2, 2048)]
+        [TestCase(6, 2048)]
         public async Task ParallelAclSetUserTest2(int degreeOfParallelism, int iterationsPerSession)
         {
             string command1 = $"ACL SETUSER {TestUserA} on >{DummyPassword} +get";
