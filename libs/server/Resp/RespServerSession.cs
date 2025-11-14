@@ -939,6 +939,7 @@ namespace Garnet.server
                 //General key commands
                 RespCommand.DBSIZE => NetworkDBSIZE(ref storageApi),
                 RespCommand.KEYS => NetworkKEYS(ref storageApi),
+                RespCommand.KQL => NetworkKQL(ref storageApi),
                 RespCommand.SCAN => NetworkSCAN(ref storageApi),
                 RespCommand.TYPE => NetworkTYPE(ref storageApi),
                 // Script Commands

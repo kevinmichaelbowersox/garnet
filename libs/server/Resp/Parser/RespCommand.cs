@@ -50,6 +50,7 @@ namespace Garnet.server
         HSTRLEN,
         HVALS,
         KEYS,
+        KQL,
         LCS,
         HTTL,
         HPTTL,
@@ -561,6 +562,7 @@ namespace Garnet.server
                 RespCommand.FLUSHDB => false,
                 RespCommand.FLUSHALL => false,
                 RespCommand.KEYS => false,
+                RespCommand.KQL => false,
                 RespCommand.SCAN => false,
                 RespCommand.SWAPDB => false,
                 _ => cmd >= FirstReadCommand && cmd <= LastDataCommand
@@ -847,6 +849,10 @@ namespace Garnet.server
                                 else if (*(ulong*)(ptr + 1) == MemoryMarshal.Read<ulong>("3\r\nLCS\r\n"u8))
                                 {
                                     return RespCommand.LCS;
+                                }
+                                else if (*(ulong*)(ptr + 1) == MemoryMarshal.Read<ulong>("3\r\nKQL\r\n"u8))
+                                {
+                                    return RespCommand.KQL;
                                 }
 
                                 break;
