@@ -86,6 +86,73 @@ namespace Garnet.test
         }
 
         [Test]
+        public void SeKqlTest()
+        {
+            using var redis = ConnectionMultiplexer.Connect(TestUtils.GetConfig());
+            var db = redis.GetDatabase(0);
+
+            // add keys in main store
+            db.StringSet(new RedisKey("keyOne"), new RedisValue("valueone"));
+            db.StringSet(new RedisKey("keyTwo"), new RedisValue("valuetwo"));
+            db.StringSet(new RedisKey("Another"), new RedisValue("valueanother"));
+
+            // add keys in object store
+            db.SortedSetAdd("keyThree", new RedisValue("OneKey"), 1, CommandFlags.None);
+            db.ListLeftPush("listOne", "item1");
+            db.SetAdd("setOne", "member1");
+
+            // Test basic pattern matching
+            var actualResponse = db.Execute("KQL", ["key*"]);
+            ClassicAssert.AreEqual(3, ((RedisResult[])actualResponse).Length);
+            var listKeys = new List<string>((string[])actualResponse);
+            ClassicAssert.IsTrue(listKeys.Contains("keyOne"));
+            ClassicAssert.IsTrue(listKeys.Contains("keyTwo"));
+            ClassicAssert.IsTrue(listKeys.Contains("keyThree"));
+
+            // Test with TYPE filter for strings
+            actualResponse = db.Execute("KQL", ["*", "TYPE", "string"]);
+            ClassicAssert.AreEqual(3, ((RedisResult[])actualResponse).Length);
+            listKeys = new List<string>((string[])actualResponse);
+            ClassicAssert.IsTrue(listKeys.Contains("keyOne"));
+            ClassicAssert.IsTrue(listKeys.Contains("keyTwo"));
+            ClassicAssert.IsTrue(listKeys.Contains("Another"));
+
+            // Test with TYPE filter for sorted sets
+            actualResponse = db.Execute("KQL", ["*", "TYPE", "zset"]);
+            ClassicAssert.AreEqual(1, ((RedisResult[])actualResponse).Length);
+            listKeys = new List<string>((string[])actualResponse);
+            ClassicAssert.IsTrue(listKeys.Contains("keyThree"));
+
+            // Test with TYPE filter for lists
+            actualResponse = db.Execute("KQL", ["*", "TYPE", "list"]);
+            ClassicAssert.AreEqual(1, ((RedisResult[])actualResponse).Length);
+            listKeys = new List<string>((string[])actualResponse);
+            ClassicAssert.IsTrue(listKeys.Contains("listOne"));
+
+            // Test with TYPE filter for sets
+            actualResponse = db.Execute("KQL", ["*", "TYPE", "set"]);
+            ClassicAssert.AreEqual(1, ((RedisResult[])actualResponse).Length);
+            listKeys = new List<string>((string[])actualResponse);
+            ClassicAssert.IsTrue(listKeys.Contains("setOne"));
+
+            // Test with COUNT limit
+            actualResponse = db.Execute("KQL", ["*", "COUNT", "2"]);
+            ClassicAssert.LessOrEqual(((RedisResult[])actualResponse).Length, 2);
+
+            // Test pattern with COUNT
+            actualResponse = db.Execute("KQL", ["key*", "COUNT", "2"]);
+            ClassicAssert.LessOrEqual(((RedisResult[])actualResponse).Length, 2);
+
+            // Test empty result
+            actualResponse = db.Execute("KQL", ["nonexistent*"]);
+            ClassicAssert.AreEqual(0, ((RedisResult[])actualResponse).Length);
+
+            // Test all keys
+            actualResponse = db.Execute("KQL", ["*"]);
+            ClassicAssert.AreEqual(6, ((RedisResult[])actualResponse).Length);
+        }
+
+        [Test]
         public void SeKeysCursorTest()
         {
             // Test a large number of keys
