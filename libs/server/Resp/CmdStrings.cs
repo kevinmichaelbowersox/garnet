@@ -93,6 +93,7 @@ namespace Garnet.server
         public static ReadOnlySpan<byte> NOVALUES => "NOVALUES"u8;
         public static ReadOnlySpan<byte> TYPE => "TYPE"u8;
         public static ReadOnlySpan<byte> type => "type"u8;
+        public static ReadOnlySpan<byte> KQL => "KQL"u8;
         public static ReadOnlySpan<byte> REGISTERCS => "REGISTERCS"u8;
         public static ReadOnlySpan<byte> registercs => "registercs"u8;
         public static ReadOnlySpan<byte> ASYNC => "ASYNC"u8;

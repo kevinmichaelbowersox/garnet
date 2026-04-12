@@ -244,6 +244,91 @@ namespace Garnet.server
             return true;
         }
 
+        private bool NetworkKQL<TGarnetApi>(ref TGarnetApi storageApi)
+             where TGarnetApi : IGarnetApi
+        {
+            if (parseState.Count < 1)
+            {
+                return AbortWithWrongNumberOfArguments(nameof(RespCommand.KQL));
+            }
+
+            // Read pattern for keys filter (first argument)
+            var patternSlice = parseState.GetArgSliceByRef(0);
+            var pattern = patternSlice.ReadOnlySpan;
+            var allKeys = pattern.Length == 1 && pattern[0] == '*';
+
+            // Default values
+            long countValue = long.MaxValue; // No limit by default
+            ReadOnlySpan<byte> typeParameterValue = default;
+
+            // Parse optional parameters
+            var tokenIdx = 1;
+            while (tokenIdx < parseState.Count)
+            {
+                var parameterWord = parseState.GetArgSliceByRef(tokenIdx++).ReadOnlySpan;
+
+                if (parameterWord.EqualsUpperCaseSpanIgnoringCase(CmdStrings.TYPE))
+                {
+                    if (tokenIdx >= parseState.Count)
+                    {
+                        return AbortWithWrongNumberOfArguments(nameof(RespCommand.KQL));
+                    }
+                    typeParameterValue = parseState.GetArgSliceByRef(tokenIdx++).ReadOnlySpan;
+                }
+                else if (parameterWord.EqualsUpperCaseSpanIgnoringCase(CmdStrings.COUNT))
+                {
+                    if (tokenIdx >= parseState.Count)
+                    {
+                        return AbortWithWrongNumberOfArguments(nameof(RespCommand.KQL));
+                    }
+                    // Validate count
+                    if (!parseState.TryGetLong(tokenIdx++, out countValue))
+                    {
+                        while (!RespWriteUtils.TryWriteError(CmdStrings.RESP_ERR_GENERIC_VALUE_IS_NOT_INTEGER, ref dcurr, dend))
+                            SendAndReset();
+                        return true;
+                    }
+                    if (countValue < 0)
+                    {
+                        while (!RespWriteUtils.TryWriteError(CmdStrings.RESP_ERR_GENERIC_VALUE_IS_OUT_OF_RANGE, ref dcurr, dend))
+                            SendAndReset();
+                        return true;
+                    }
+                }
+                else
+                {
+                    // Unknown parameter
+                    while (!RespWriteUtils.TryWriteError(CmdStrings.RESP_SYNTAX_ERROR, ref dcurr, dend))
+                        SendAndReset();
+                    return true;
+                }
+            }
+
+            // Use DbScan to get filtered keys
+            storageApi.DbScan(patternSlice, allKeys, 0, out var cursor, out var keys, countValue, typeParameterValue);
+
+            if (keys.Count > 0)
+            {
+                // Write size of the array
+                while (!RespWriteUtils.TryWriteArrayLength(keys.Count, ref dcurr, dend))
+                    SendAndReset();
+
+                // Write the keys matching the pattern
+                foreach (var item in keys)
+                {
+                    while (!RespWriteUtils.TryWriteBulkString(item, ref dcurr, dend))
+                        SendAndReset();
+                }
+            }
+            else
+            {
+                while (!RespWriteUtils.TryWriteEmptyArray(ref dcurr, dend))
+                    SendAndReset();
+            }
+
+            return true;
+        }
+
         private bool NetworkSCAN<TGarnetApi>(ref TGarnetApi storageApi)
               where TGarnetApi : IGarnetApi
         {
